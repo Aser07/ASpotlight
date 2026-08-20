@@ -22,6 +22,7 @@ EVERYTHING_REQUEST_HIGHLIGHTED_FULL_PATH_AND_FILE_NAME = 0x00008000
 
 # 파일 정렬 상수
 EVERYTHING_SORT_DATE_MODIFIED_DESCENDING = 6  # 최신 수정순
+search_path = "C:/Users/gitdm "
 
 #dll imports
 everything_dll = ctypes.WinDLL ("C:/Users/gitdm/Documents/project/utilitys/spotlight/EverythingSDK/dll/Everything64.dll")
@@ -86,6 +87,7 @@ def file_search(query:str,
             file_name = full_path[full_path.rfind('/')+1:]
             file_path = full_path[:full_path.rfind('/')+1]
             date_modified = get_time(date_modified_filetime).strftime('%Y-%m-%d %H:%M:%S')
+            
             
             file_data["name"].append(file_name)
             file_data["path"].append(file_path)

@@ -1,6 +1,7 @@
 from modules import web_search
 from modules import explorer
 from modules import dictionary
+from modules import app_launcher
 import flet as ft
 import ctypes # 윈도우 해상도를 가져오기 위해 사용
 import asyncio
@@ -8,9 +9,12 @@ from UI import create_ui
 from pynput import keyboard
 import threading
 
-# settings 기능도 있으면 좋음 - 유명한 파일 확장자만 검색 같은거
-
-options = ['web', 'dictonary', 'on device']
+# settings 기능도 있으면 좋음(검색엔진 변경 같은거?) - 유명한 파일 확장자만 검색 같은거
+# 검색 결과 존재하는 것만 위젯 보이기 -> 앱 사이즈 자동 조정 구현 필요
+# calender: 뭘 어떻게 연동하면 좋을까. 그냥 오픈하는 기능?
+# write: 간단한 텍스트 파일 만들기?
+# calculator: 정규표현식으로 사칙연산 인식해서 결과값 반환하기
+# apps = app_launcher.get_app_list()
 web_flag = False
 dictionary_flag = False
 onDevice_flag = True
@@ -18,8 +22,7 @@ onDevice_flag = True
 # 앱 창 크기 설정
 app_width = 1000
 app_height = 80
-app_expanded_height = 250
-
+app_expanded_height = 230
 # 모니터 해상도 가져오기 (Windows 기준)
 user32 = ctypes.windll.user32
 screen_width = user32.GetSystemMetrics(0)
@@ -29,7 +32,6 @@ screen_height = user32.GetSystemMetrics(1)
 pos_x = int((screen_width-app_width) / 2)
 pos_y = int((screen_height- app_height) / 3) 
 # #----------------------------------------------------------------------------------------------------
-
 
 # UI
 async def main(page: ft.Page):
@@ -71,6 +73,10 @@ async def main(page: ft.Page):
             page.window.focused = True
             page.update()
 
+    # 작업 실행 후 창 숨기기
+    async def hide_window():
+        page.window.visible = not page.window.visible
+        page.update()
     
 
 
@@ -96,13 +102,47 @@ async def main(page: ft.Page):
             results.visible = False
         page.update()
 
-    
+    # dictionary 관리 변수
+    current_meanings = []
+    current_index = 0
 
-    ui_layout, results = create_ui(page=page,
-                                   search_handler=on_search,
-                                    )
+    # dictionary UI 받아오기
+    dict_title_ref = None
+    dict_index_ref = None
+
+    # dictinary 갱신 함수
+    def update_dict_view():
+        nonlocal current_meanings, current_index, dict_index_ref, dict_title_ref
+        if not dict_title_ref or not dict_index_ref:
+            return
+
+        if not current_meanings:
+            dict_title_ref.value = "검색 결과 없음"
+            dict_index_ref.value = "0/0"
+        else:
+            item = current_meanings[current_index]
+            dict_title_ref.value = f"{item['type']}: {item['meaning']}"
+            dict_index_ref.value = f"{current_index+1}/{len(current_meanings)}"
+        page.update() 
+
+    # 다음 뜻 보기 버튼 핸들러
+    async def on_next_meaning(e):
+        nonlocal current_index, current_meanings
+        if current_meanings:
+            current_index = (current_index + 1) % len(current_meanings)
+            update_dict_view()
+
+    # 이전 뜻 보기 버튼 핸들러
+    async def on_prev_meaning(e):
+        nonlocal current_index, current_meanings
+        if current_meanings:
+            current_index = (current_index - 1) % len(current_meanings)
+            update_dict_view()
+
+
     # 검색 - url 변환 최적화 필요
     async def search(query):
+        nonlocal current_meanings, current_index
         try:
             await asyncio.sleep(0.2)
             file_data = explorer.file_search(query)
@@ -117,21 +157,34 @@ async def main(page: ft.Page):
                     control.title.value = "file not found"
 
                 elif control.key == "web":
-                    # url_query = str(query).replace(" ", "+")
                     control.title.value = f"Web에서 검색: {query}"
                     control.url = url
                     
 
                 elif control.key == "dictionary":
-                    control.title.value = "검색 결과 없음"
                     if response == "error":
+                        current_meanings = []
+                        current_index = 0
                         continue
-                    if response:
-                        control.title.value = f"{response["type"]}: {response["meaning"]}"
-            # search_result = results.controls["file"].title.value = query
-            control.update()
+                    else:
+                        current_meanings = response
+                        current_index = 0
+
+                    # view update 함수 호출
+                    update_dict_view()
+                                             
+            page.update()
         except asyncio.CancelledError:
             pass
+
+    # create_ui 호출부 변경
+    ui_layout, results, dict_title_ref, dict_index_ref = create_ui(
+        page=page,
+        search_handler=on_search,
+        onclick_handler=hide_window,
+        prev_meaning_handler=on_prev_meaning,
+        next_meaning_handler=on_next_meaning
+    )
 
     # Hot key 설정
     def call():
