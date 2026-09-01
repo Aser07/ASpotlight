@@ -12,8 +12,13 @@ def create_ui(page:ft.Page, search_handler, onclick_handler, prev_meaning_handle
     
 
     # 2. UI 위젯 구성
+
+    # 수식 계산 결과 표시
+    calc_suffix = ft.Text("", color=ft.Colors.BLUE_GREY_400, italic=True,)
+
     search_field = ft.TextField(
-        hint_text="무엇이든 검색하세요...",
+        hint_text="Type anything...",
+        suffix=calc_suffix,
         text_size=20,
         height=app_height,
         content_padding=20,
@@ -24,13 +29,14 @@ def create_ui(page:ft.Page, search_handler, onclick_handler, prev_meaning_handle
         expand=True,
         
     )
-
+    # 단어 뜻 표시
     dict_title_text = ft.Text(
         value="검색 결과 없음",   
         max_lines=1,
         overflow=ft.TextOverflow.ELLIPSIS,
         size=15,)
 
+    # 하단 단어 개수 넘버링
     dict_index_text = ft.Text("0/0", size=12, color=ft.Colors.GREY_400) # 현재 인덱스 표시용 텍스트
 
     results = ft.Column(
@@ -95,8 +101,8 @@ def create_ui(page:ft.Page, search_handler, onclick_handler, prev_meaning_handle
     spotlight_box = ft.Container(
         content=ft.Column([search_field, results], spacing=0),
         bgcolor=ft.Colors.with_opacity(0.9, "#222222"), # 다크 모드 감성
-        border=ft.border.all(1, "#444444"),
+        border=ft.Border.all(1, "#444444"),
         expand=True,
         border_radius=30
     )
-    return spotlight_box, results, dict_title_text, dict_index_text
+    return spotlight_box, results, dict_title_text, dict_index_text, calc_suffix

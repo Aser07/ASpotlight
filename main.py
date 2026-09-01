@@ -1,23 +1,23 @@
 from modules import web_search
 from modules import explorer
 from modules import dictionary
-from modules import app_launcher
 import flet as ft
 import ctypes # 윈도우 해상도를 가져오기 위해 사용
 import asyncio
 from UI import create_ui
 from pynput import keyboard
-import threading
+import re
 
 # settings 기능도 있으면 좋음(검색엔진 변경 같은거?) - 유명한 파일 확장자만 검색 같은거
 # 검색 결과 존재하는 것만 위젯 보이기 -> 앱 사이즈 자동 조정 구현 필요
 # calender: 뭘 어떻게 연동하면 좋을까. 그냥 오픈하는 기능?
 # write: 간단한 텍스트 파일 만들기?
 # calculator: 정규표현식으로 사칙연산 인식해서 결과값 반환하기
-# apps = app_launcher.get_app_list()
+# !command: file create
 web_flag = False
 dictionary_flag = False
 onDevice_flag = True
+math_pattern = r'^[\d+\-*/().\s]+$'
 
 # 앱 창 크기 설정
 app_width = 1000
@@ -145,9 +145,18 @@ async def main(page: ft.Page):
         nonlocal current_meanings, current_index
         try:
             await asyncio.sleep(0.2)
-            file_data = explorer.file_search(query)
-            url = f"https://www.google.com/search?q={str(query).strip().replace(" ", "+")}"
-            response = dictionary.look_up(query)
+            if query:
+                if re.match(math_pattern, query):
+                    try:
+                        calc_suffix.value = f"= {eval(query)}"
+                    except Exception:
+                        calc_suffix.value = ""
+                else:
+                    calc_suffix.value = ""
+                file_data = explorer.file_search(query)
+                url = f"https://www.google.com/search?q={str(query).strip().replace(" ", "+")}"
+                response = dictionary.look_up(query)
+                
 
             for control in results.controls:
                 if control.key == "file" and file_data:
@@ -155,6 +164,7 @@ async def main(page: ft.Page):
                     control.url = file_data["path"][0]
                 elif control.key =="file" and not file_data:
                     control.title.value = "file not found"
+                    control.url = None
 
                 elif control.key == "web":
                     control.title.value = f"Web에서 검색: {query}"
@@ -178,7 +188,7 @@ async def main(page: ft.Page):
             pass
 
     # create_ui 호출부 변경
-    ui_layout, results, dict_title_ref, dict_index_ref = create_ui(
+    ui_layout, results, dict_title_ref, dict_index_ref, calc_suffix = create_ui(
         page=page,
         search_handler=on_search,
         onclick_handler=hide_window,
